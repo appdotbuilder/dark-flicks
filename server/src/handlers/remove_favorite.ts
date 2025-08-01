@@ -1,13 +1,25 @@
 
+import { db } from '../db';
+import { favoritesTable } from '../db/schema';
 import { type RemoveFavoriteInput } from '../schema';
+import { and, eq } from 'drizzle-orm';
 
-export async function removeFavorite(input: RemoveFavoriteInput): Promise<{ success: boolean }> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is removing a movie/series from user's favorites list.
-    // It should find and delete the favorite record for the specific user and movie combination.
-    
-    console.log(`Removing movie ${input.movie_id} from favorites for user ${input.user_id}`);
-    
-    // Mock response - in real implementation, this would delete from the database
-    return { success: true };
-}
+export const removeFavorite = async (input: RemoveFavoriteInput): Promise<{ success: boolean }> => {
+  try {
+    // Delete the favorite record matching both user_id and movie_id
+    const result = await db.delete(favoritesTable)
+      .where(
+        and(
+          eq(favoritesTable.user_id, input.user_id),
+          eq(favoritesTable.movie_id, input.movie_id)
+        )
+      )
+      .execute();
+
+    // Check if any rows were affected (deleted)
+    return { success: (result.rowCount ?? 0) > 0 };
+  } catch (error) {
+    console.error('Remove favorite failed:', error);
+    throw error;
+  }
+};

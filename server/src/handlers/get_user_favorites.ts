@@ -1,32 +1,38 @@
 
+import { db } from '../db';
+import { moviesTable, favoritesTable } from '../db/schema';
 import { type GetUserFavoritesInput, type FavoriteWithMovie } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function getUserFavorites(input: GetUserFavoritesInput): Promise<FavoriteWithMovie[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all favorites for a specific user.
-    // It should join the favorites table with the movies table to return complete movie details.
-    // This will be used to populate the dedicated favorites view.
-    
-    console.log(`Getting favorites for user ${input.user_id}`);
-    
-    // Mock response - in real implementation, this would query the database with joins
-    return [
-        {
-            id: 1,
-            user_id: input.user_id,
-            movie_id: 1,
-            created_at: new Date(),
-            movie: {
-                id: 1,
-                title: "The Dark Knight",
-                description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-                genre: "Action",
-                release_year: 2008,
-                rating: 9.0,
-                poster_url: "https://example.com/dark-knight.jpg",
-                type: "movie" as const,
-                created_at: new Date()
-            }
-        }
-    ];
+  try {
+    // Query favorites with movie details using inner join
+    const results = await db.select()
+      .from(favoritesTable)
+      .innerJoin(moviesTable, eq(favoritesTable.movie_id, moviesTable.id))
+      .where(eq(favoritesTable.user_id, input.user_id))
+      .execute();
+
+    // Transform joined results to expected format
+    return results.map(result => ({
+      id: result.favorites.id,
+      user_id: result.favorites.user_id,
+      movie_id: result.favorites.movie_id,
+      created_at: result.favorites.created_at,
+      movie: {
+        id: result.movies.id,
+        title: result.movies.title,
+        description: result.movies.description,
+        genre: result.movies.genre,
+        release_year: result.movies.release_year,
+        rating: parseFloat(result.movies.rating), // Convert numeric to number
+        poster_url: result.movies.poster_url,
+        type: result.movies.type,
+        created_at: result.movies.created_at
+      }
+    }));
+  } catch (error) {
+    console.error('Getting user favorites failed:', error);
+    throw error;
+  }
 }
